@@ -51,51 +51,52 @@
 
 (defrule block-blank line-blank)
 
-(defrule block-comment (and "###" EOL
-                            (* (and (! (and "###" EOL))
-                                    (* (not EOL)) EOL))
-                            "###" EOL
+(defrule block-comment-sep (and HASH HASH HASH EOL))
+
+(defrule block-comment (and block-comment-sep
+                            (* (and (! block-comment-sep)
+                                    (* (and (! EOL) ANY)) EOL))
+                            block-comment-sep
                             (? line-blank)))
 
-(defrule line-comment (and #\# (? #\Space) (* (not EOL)) EOL
+(defrule line-comment (and HASH (? SPACE) (* (and (! EOL) ANY)) EOL
                            (? line-blank)))
 
 (defrule block-rule (and "----" EOL
                          (? line-blank)))
 
-(defrule block-meta (and "---" EOL
-                         (* (and (! (and "..." EOL))
-                                 (* (not EOL)) EOL))
-                         "..." EOL))
+(defrule block-meta-beg (and "---" EOL))
+(defrule block-meta-end (and "..." EOL))
 
-(defrule block-head (and (or "====" "===" "==" "=") (+ #\Space)
+(defrule block-meta (and block-meta-beg
+                         (* (and (! block-meta-end)
+                                 (* (and (! EOL) ALL)) EOL))
+                         block-meta-end))
+
+(defrule block-head (and (or "====" "===" "==" "=") (+ SPACE)
                          (or block-head-plain
                              block-head-multi
                              block-head-marker)
                          (? line-blank)))
 
-(defrule block-head-plain (and (+ (and (! #\Space) ANY))
-                               (+ #\Space) (+ #\=) EOL))
+(defrule block-head-plain (and (+ (and (! SPACE) ANY))
+                               (+ SPACE) (+ EQUAL) EOL))
 
 (defrule block-head-multi (and (+ ANY) EOL
-                               (* (and (! block-head-multi-end)
-                                       (not WS) (* ANY) EOL))
+                               (* (and (not WS) (* ANY) EOL))
+                               (not WS) (* (and (! block-head-multi-end) ANY))
                                block-head-multi-end))
 
-(defrule block-head-multi-end (and (not WS) (* (and (! #\Space) ANY))
-                                   (+ #\Space) (+ #\=) EOL))
+(defrule block-head-multi-end (and (+ SPACE) (+ EQUAL) EOL))
 
 (defrule block-head-marker (and (+ ANY) EOL
-                                (* (and (! block-head-marker-end)
-                                        (not WS) (* ANY) EOL))
-                                (& block-head-marker-end)))
-
-(defrule block-head-marker-end (or marker-block-start EOL))
+                                (* (and (not WS) (* ANY) EOL))
+                                (& (or marker-block-start EOL EOS))))
 
 (defrule block-code "///")
 
 (defrule block-pref (and (+ (and (* line-blank)
-                                 #\Space #\Space (* ANY) EOL))
+                                 SPACE SPACE (* ANY) EOL))
                          (? line-blank)))
 
 (defrule block-list (or block-list-bullet
@@ -119,11 +120,11 @@
                                      line-blank
                                      line-indented))))
 
-(defrule line-list-item-bullet (and #\* #\Space (* ANY) EOL))
+(defrule line-list-item-bullet (and STAR SPACE (* ANY) EOL))
 
-(defrule line-list-item-number (and #\+ #\Space (* ANY) EOL))
+(defrule line-list-item-number (and PLUS SPACE (* ANY) EOL))
 
-(defrule line-list-item-data (and #\- #\Space (* ANY) EOL))
+(defrule line-list-item-data (and DASH SPACE (* ANY) EOL))
 
 (defrule block-list-item (* (or block-blank
                                 block-comment
@@ -135,16 +136,16 @@
                                 block-verse
                                 block-para)))
 
-(defrule line-indented (and #\Space #\Space (* ANY) EOL))
+(defrule line-indented (and SPACE SPACE (* ANY) EOL))
 
 (defrule block-title (and text-line
-                          (and "===" (? (* #\=))) EOL
+                          EQUAL EQUAL EQUAL (* EQUAL) EOL
                           (? (and line-blank
                                   text-line
-                                  (& (or line-blank))))
+                                  (& (or line-blank EOS))))
                           (? line-blank)))
 
-(defrule block-verse (and #\. EOL
+(defrule block-verse (and DOT EOL
                           (+ text-line)
                           (? line-blank)))
 
@@ -166,13 +167,13 @@
                            phrase-link
                            marker-next))
 
-(defrule marker-escape (and #\\ ANY))
+(defrule marker-escape (and BACK ANY))
 
 (defrule phrase-text (+ (and (! (or marker-phrase-start (and "http" (? #\s) #\:)))
                              ALL)))
 
 (defrule phrase-code (and marker-code
-                          (? (* (not marker-code)))
+                          (* (not marker-code))
                           marker-code))
 
 (defrule phrase-meta (and marker-func-start #\$
@@ -183,19 +184,19 @@
                           (+ (not marker-func-end))
                           marker-func-end))
 
-(defrule phrase-bold (and marker-bold (& (and (not #\Space) (not marker-bold)))
+(defrule phrase-bold (and marker-bold (& (and NS (not marker-bold)))
                           (+ (and (! marker-bold) phrase-markup))
                           marker-bold))
 
-(defrule phrase-emph (and marker-emph (& (and (not #\Space) (not marker-emph)))
+(defrule phrase-emph (and marker-emph (& (and NS (not marker-emph)))
                           (+ (and (! marker-emph) phrase-markup))
                           marker-emph))
 
-(defrule phrase-del (and marker-del (& (and (not #\Space) (not marker-del)))
+(defrule phrase-del (and marker-del (& (and NS (not marker-del)))
                         (+ (and (! marker-del) phrase-markup))
                         marker-del))
 
-(defrule phrase-under (and marker-under (& (and (not #\Space) (not marker-under)))
+(defrule phrase-under (and marker-under (& (and NS (not marker-under)))
                            (+ (and (! marker-under) phrase-markup))
                            marker-under))
 
@@ -203,27 +204,31 @@
                           phrase-hyper-explicit
                           phrase-hyper-implicit))
 
-(defrule phrase-hyper-named (and #\" (+ (not #\")) #\"
-                                 #\[ (and "http" (? #\s) #\: (* (not (or #\Space #\])))) #\]))
+(defrule phrase-hyper-named (and DOUBLE (+ (not DOUBLE)) DOUBLE
+                                 LSQUARE http-scheme (* (and (! RSQUARE) NS))
+                                 RSQUARE))
 
-(defrule phrase-hyper-explicit (and #\[ (and "http" (? #\s) #\: (* (not (or #\Space #\])))) #\]))
+(defrule phrase-hyper-explicit (and LSQUARE http-scheme (* (and (! RSQUARE) NS))
+                                    RSQUARE))
 
-(defrule phrase-hyper-implicit (and (and "http" (? #\s) #\: (+ (not #\Space)))))
+(defrule phrase-hyper-implicit (and http-scheme (+ NS)))
 
 (defrule phrase-link (or phrase-link-named
                          phrase-link-plain))
 
-(defrule phrase-link-named (and #\" (+ (not #\")) #\"
-                                #\[ (? (* (not #\Space))) #\]))
+(defrule phrase-link-named (and DOUBLE (+ (not DOUBLE)) DOUBLE
+                                LSQUARE (* (and (! RSQUARE)))
+                                RSQUARE))
 
-(defrule phrase-link-plain (and #\[ (? (* (not #\Space))) #\]))
+(defrule phrase-link-plain (and LSQUARE (* (and (! RSQUARE)))
+                                RSQUARE))
 
 (defrule marker-next ALL)
 
-(defrule text-line (and (! (and (or marker-block-start #\Linefeed) #\Space))
-                        (* ANY) (not #\Space) (* ANY) (or #\Newline)))
+(defrule text-line (and (! (and (or marker-block-start NL) SPACE))
+                        (* ANY) NS (* ANY) (or EOL EOS)))
 
-(defrule line-blank (and (* #\Space) EOL))
+(defrule line-blank (and (* SPACE) EOL))
 
 (defrule marker-block-start (or marker-pref
                                 marker-list
@@ -239,23 +244,39 @@
                                  marker-link
                                  marker-esc))
 
-(defrule marker-pref #\Space)
-(defrule marker-list #\*)
-(defrule marker-head #\=)
-(defrule marker-comment #\#)
+(defrule marker-pref SPACE)
+(defrule marker-list STAR)
+(defrule marker-head EQUAL)
+(defrule marker-comment HASH)
 (defrule marker-func-start #\<)
 (defrule marker-func-end #\>)
 (defrule marker-code #\`)
-(defrule marker-bold #\*)
+(defrule marker-bold STAR)
 (defrule marker-emph #\/)
-(defrule marker-del (and #\- #\-))
+(defrule marker-del (and DASH DASH))
 (defrule marker-under #\_)
-(defrule marker-link (and #\" #\[))
-(defrule marker-esc #\\)
+(defrule marker-link (and DOUBLE LSQUARE))
+(defrule marker-esc BACK)
 
-(defrule EOL #\Newline)
+(defrule http-scheme (and "http" (? #\s) #\:))
+
 (defrule ALL character)
 (defrule ANY (not #\Newline))
+(defrule BACK #\\)
+(defrule DASH #\-)
+(defrule DOT #\.)
+(defrule DOUBLE #\")
+(defrule EOL #\Newline)
+(defrule EOS (! (string 1)) (:constant nil))
+(defrule EQUAL #\=)
+(defrule HASH #\#)
+(defrule LSQUARE #\[)
+(defrule NL #\Linefeed)
+(defrule NS (not #\Space))
+(defrule PLUS #\+)
+(defrule RSQUARE #\])
+(defrule SPACE #\Space)
+(defrule STAR #\*)
 (defrule WS (or #\Space #\Tab))
 
 ;;; grammar.lisp ends here
