@@ -34,7 +34,9 @@
 
 (in-package #:swim-grammar)
 
-(defrule document (* block-top))
+(defrule document (* block-top)
+  (:lambda (r)
+    `(:document ,r)))
 
 (defrule block-top (or block-blank
                        block-comment
@@ -57,7 +59,10 @@
                             (* (and (! block-comment-sep)
                                     (* (and (! EOL) ANY)) EOL))
                             block-comment-sep
-                            (? line-blank)))
+                            (? line-blank))
+  (:destructure (sep1 comment sep2 &rest rest)
+    (declare (ignore sep1 sep2 rest))
+    `(:comment ,(text comment))))
 
 (defrule line-comment (and HASH (? SPACE) (* (and (! EOL) ANY)) EOL
                            (? line-blank)))
@@ -226,7 +231,8 @@
 (defrule marker-next ALL)
 
 (defrule text-line (and (! (and (or marker-block-start NL) SPACE))
-                        (* ANY) NS (* ANY) (or EOL EOS)))
+                        (* ANY) NS (* ANY) (or EOL EOS))
+  (:text t))
 
 (defrule line-blank (and (* SPACE) EOL))
 
