@@ -1,0 +1,7 @@
+= multi-line-head
+first line
+second line ==
+
+== multi-line-head
+first line
+second line ==

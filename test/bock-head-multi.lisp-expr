@@ -1,0 +1,7 @@
+(:DOCUMENT
+ (:HEAD-1 "multi-line-head
+first line
+second line")
+ (:HEAD-2 "multi-line-head
+first line
+second line"))
